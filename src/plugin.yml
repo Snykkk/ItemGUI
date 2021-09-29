@@ -1,0 +1,10 @@
+name: ItemGUI
+version: 1.0.0
+main: snykkk.itemgui.ItemGUI
+author: Snykkk
+depend: [MythicMobs]
+api-version: 1.13
+commands:
+     mmi:
+      description: Open mythicmobs item gui.
+      usage: /<command>
