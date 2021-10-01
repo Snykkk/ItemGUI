@@ -1,21 +1,28 @@
 package snykkk.itemgui;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import io.lumine.xikage.mythicmobs.MythicMobs;
@@ -61,6 +68,7 @@ public class ItemGUI extends JavaPlugin implements Listener {
 		
 		Bukkit.getPluginManager().registerEvents(this, this);
 
+		saveDefaultItem();
 	}
 
 	@Override
@@ -70,16 +78,59 @@ public class ItemGUI extends JavaPlugin implements Listener {
 		
 	}
 	
+	@SuppressWarnings("deprecation")
 	public boolean onCommand(CommandSender sender, Command cmd, String a, String[] args) {
 		
 		if (a.equalsIgnoreCase("mmi") && (sender.isOp() || sender.hasPermission("*") || sender.hasPermission("itemgui.command"))) {
 				
 			if (sender instanceof Player) {
 				Player p = (Player) sender;
+				
+				if (args.length == 0) {
+					open(p, 1, "");
+				}
+				
 				if (args.length == 1) {
 					open(p, 1, args[0]);
-				} else {
-					open(p, 1, "");
+				}
+				
+				if (args.length == 2 && args[0].equalsIgnoreCase("save")) {
+
+					saveDefaultItem();
+					
+					ItemStack i = p.getInventory().getItemInMainHand();
+					String id = args[1];
+					
+					itemfc.set(id + ".Id", i.getType().toString());
+					itemfc.set(id + ".Data", i.getData().getData());
+					if (i.hasItemMeta()) {
+						if (i.getItemMeta().hasDisplayName()) {
+							itemfc.set(id + ".Display", i.getItemMeta().getDisplayName());
+						}
+						if (i.getItemMeta().hasLore()) {
+							itemfc.set(id + ".Lore", i.getItemMeta().getLore());
+						}
+						Damageable im = (Damageable) i.getItemMeta();
+						if (im.hasDamage()) {
+							itemfc.set(id + ".Durability", im.getDamage());
+						}
+						if (i.getItemMeta().hasEnchants()) {
+							List<String> ecs = new ArrayList<String>();
+							Map<Enchantment, Integer> enchants = i.getItemMeta().getEnchants();
+							for (Enchantment ec : enchants.keySet()) {
+								ecs.add(ec.getName().toString() + ":" + enchants.get(ec));
+							}
+							
+							itemfc.set(id + ".Enchantments", ecs);
+						}
+						if (i.getItemMeta().isUnbreakable()) {
+							itemfc.set(id + ".Options.Unbreakable", true);
+						}
+					}
+					
+					save();
+					
+					p.sendMessage("§7[§aMMI§7] §aSaved " + id + "!");
 				}
 			} else {
 				sender.sendMessage("§7[§aMMI§7] §cYou can execute this command only as player!");
@@ -88,6 +139,26 @@ public class ItemGUI extends JavaPlugin implements Listener {
 
 		return true;
 	}
+	
+	File item;
+	FileConfiguration itemfc;
+	
+	public void saveDefaultItem() {
+		this.item = new File(MythicMobs.inst().getDataFolder() + "/Items", "ItemGUI.yml");
+		
+		if (!this.item.exists()) {
+			try {this.itemfc.save(this.item);}
+			catch (Exception ex) {}
+		}
+		
+		this.itemfc = YamlConfiguration.loadConfiguration(this.item);
+	}
+	
+	public void save() {
+		try {this.itemfc.save(this.item);} catch (Exception ex) {}
+	}
+	public FileConfiguration getItemFileConfiguration() { return this.itemfc; }
+	public void reloadItem() { saveDefaultItem(); }
 	
 	public static void open (Player p, int page, String keyword) {
 		Inventory inv = null;
@@ -133,7 +204,7 @@ public class ItemGUI extends JavaPlugin implements Listener {
 		}
 	    
 	    for (int i = 45; i <= 53; i++) {
-	    	if (main.server_version.equals("1_12")) {
+	    	if (main.server_version.startsWith("1_12")) {
 	    		inv.setItem(i, new FItem(Material.valueOf("STAINED_GLASS_PANE")).setName("§b").toItemStack());
 	    	} else {
 	    		inv.setItem(i, new FItem(Material.WHITE_STAINED_GLASS_PANE).setName("§b").toItemStack());
